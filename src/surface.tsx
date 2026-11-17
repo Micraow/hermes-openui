@@ -1,10 +1,15 @@
 import { Renderer, type ActionEvent, type OpenUIError } from '@openuidev/react-lang'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { INTELLIGENT_UI_STYLES } from './intelligent-ui/theme.ts'
+import { runLibraryAction } from './intelligent-ui/actions.ts'
+import { OPENUI_STYLES } from './intelligent-ui/styles.ts'
 import { openUILibrary } from './library.tsx'
 
 const STATE_STORAGE_PREFIX = 'hermes.openui.state.v1'
+type QueryToolProvider = Record<
+  string,
+  (args: Record<string, unknown>) => Promise<unknown>
+>
 
 export interface OpenUISurfaceProps {
   /** Stable card identity, unique within its session. */
@@ -16,6 +21,7 @@ export interface OpenUISurfaceProps {
   readonly sessionId: null | string
   readonly source: string
   readonly streaming: boolean
+  readonly toolProvider?: null | QueryToolProvider
 }
 
 interface SurfaceStorage {
@@ -80,20 +86,59 @@ function actionableMessage(event: ActionEvent): string | null {
   return message || null
 }
 
+function openSafeUrl(event: ActionEvent): void {
+  if (event.type !== 'open_url') {
+    return
+  }
+
+  const value = event.params.url
+
+  if (typeof value !== 'string') {
+    return
+  }
+
+  try {
+    const url = new URL(value)
+
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      window.open(url.href, '_blank', 'noopener,noreferrer')
+    }
+  } catch {
+    // Invalid and unsupported URLs are ignored without navigating the host.
+  }
+}
+
 export function OpenUISurface({
   identity,
   onFollowUp,
   sessionId,
   source,
-  streaming
+  streaming,
+  toolProvider = null
 }: OpenUISurfaceProps) {
   const [errors, setErrors] = useState<readonly OpenUIError[]>([])
   const followedRef = useRef<string | null>(null)
   const visibleErrors = errors.filter(error => error.severity !== 'warning')
   const stateKey = storageKey(sessionId, identity)
   const initialState = useMemo(() => restoreState(stateKey), [stateKey])
+  const lastStateRef = useRef(initialState)
+  const previousIdentityRef = useRef(identity)
+
+  useEffect(() => {
+    if (previousIdentityRef.current !== identity) {
+      previousIdentityRef.current = identity
+      lastStateRef.current = initialState
+      return
+    }
+
+    if (lastStateRef.current) {
+      persistState(stateKey, lastStateRef.current)
+    }
+  }, [identity, initialState, stateKey])
 
   const handleAction = (event: ActionEvent) => {
+    openSafeUrl(event)
+    void runLibraryAction(event)
     const message = actionableMessage(event)
 
     if (!message || !sessionId || !onFollowUp) {
@@ -141,17 +186,36 @@ export function OpenUISurface({
       data-hermes-openui-identity={identity}
       data-hermes-openui-surface
     >
-      <style>{INTELLIGENT_UI_STYLES}</style>
+      <style>{OPENUI_STYLES}</style>
       <Renderer
         initialState={initialState}
         isStreaming={streaming}
-        key={stateKey}
+        key={identity}
         library={openUILibrary}
         onAction={handleAction}
         onError={nextErrors => setErrors(nextErrors)}
-        onStateUpdate={state => persistState(stateKey, state)}
+        onStateUpdate={state => {
+          lastStateRef.current = state
+          persistState(stateKey, state)
+        }}
         response={source.trim() || null}
-      />
+        toolProvider={toolProvider}
+      >
+        <div className="hermes-openui-renderer">
+          <Renderer.Content />
+          <Renderer.QueryLoading>
+            <p className="hermes-openui-query-status" role="status">
+              Loading data…
+            </p>
+          </Renderer.QueryLoading>
+          <Renderer.QueryError>
+            <div className="hermes-openui-query-status" role="alert">
+              <span>The configured data source could not be loaded.</span>
+              <Renderer.Retry type="button">Try again</Renderer.Retry>
+            </div>
+          </Renderer.QueryError>
+        </div>
+      </Renderer>
       {!streaming && visibleErrors.length > 0 ? (
         <p className="hermes-openui-error" role="alert">
           This interface could not be displayed.

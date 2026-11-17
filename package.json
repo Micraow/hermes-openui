@@ -1,15 +1,21 @@
 {
-  "name": "hermes-openui-stream",
+  "name": "hermes-openui",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/plugin.tsx --bundle --minify --format=esm --target=es2022 --jsx=automatic --external:@hermes/plugin-sdk --external:react --external:react/jsx-runtime --external:react-dom --define:process.env.NODE_ENV='\"production\"' --outfile=desktop/plugin.js",
+    "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/*.test.ts",
-    "test:browser": "node --import ./tests/register-tsx.mjs --test tests/surface.test.tsx"
+    "test": "node --import ./tests/register-tsx.mjs --test tests/*.test.ts && npm run test:backend",
+    "test:browser": "node --import ./tests/register-tsx.mjs --test tests/surface.test.tsx",
+    "test:backend": "python3 -m unittest discover -s dashboard/tests -p 'test_*.py'",
+    "test:webapp": "node --import ./tests/register-tsx.mjs tests/webapp.mjs",
+    "package": "npm run build && python3 scripts/package_release.py"
   },
   "dependencies": {
     "@openuidev/react-lang": "1.1.0",
+    "katex": "0.16.47",
+    "lucide-react": "0.562.0",
+    "maplibre-gl": "6.13.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "zod": "4.3.6"
@@ -21,5 +27,20 @@
     "esbuild": "0.28.1",
     "playwright-core": "1.65.1",
     "typescript": "6.0.3"
+  },
+  "version": "0.1.0",
+  "description": "Streaming, interactive OpenUI answers for Hermes Agent. Plugin and authoring skill, no host patches required.",
+  "license": "MIT",
+  "author": "Micraow",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Micraow/hermes-openui.git"
+  },
+  "homepage": "https://github.com/Micraow/hermes-openui#readme",
+  "bugs": {
+    "url": "https://github.com/Micraow/hermes-openui/issues"
+  },
+  "engines": {
+    "node": ">=22.15.0"
   }
 }

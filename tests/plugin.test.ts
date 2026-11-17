@@ -41,14 +41,36 @@ type PluginModule = {
         data?: unknown
         id: string
       }) => () => void
+      rest: <T>(
+        path: string,
+        options?: {
+          body?: unknown
+          method?: string
+          timeoutMs?: number
+        }
+      ) => Promise<T>
     }) => void
   }
   OPENUI_UNAVAILABLE: string
+  createOpenUIQueryTools: (
+    rest: <T>(
+      path: string,
+      options?: {
+        body?: unknown
+        method?: string
+        timeoutMs?: number
+      }
+    ) => Promise<T>
+  ) => Record<string, (args: Record<string, unknown>) => Promise<unknown>>
   submitOpenUIFollowUp: (sessionId: null | string, message: string) => boolean
 }
 
 declare global {
   var __openuiSubmissions: Array<{ sessionId: null | string; text: string }>
+  var __openuiRestCalls: Array<{
+    options?: { body?: unknown; method?: string; timeoutMs?: number }
+    path: string
+  }>
 }
 
 class MemoryStorage {
@@ -101,6 +123,8 @@ async function loadPlugin(t: test.TestContext): Promise<PluginModule> {
     external: ['react', 'react/jsx-runtime', 'react-dom'],
     format: 'esm',
     jsx: 'automatic',
+    loader: { '.css': 'text' },
+    mainFields: ['module', 'main'],
     platform: 'node',
     plugins: [
       {
@@ -142,6 +166,13 @@ function installPlugin(plugin: PluginModule): {
       assert.equal(entry.area, 'transcript.directives')
       contribution = entry.data as DirectiveContribution
       return () => undefined
+    },
+    async rest<T>(
+      path: string,
+      options?: { body?: unknown; method?: string; timeoutMs?: number }
+    ): Promise<T> {
+      globalThis.__openuiRestCalls.push({ options, path })
+      return { rows: [{ id: 'row-1' }] } as T
     }
   })
 
@@ -210,20 +241,17 @@ function renderDirective(
   )
 }
 
-test('shows a neutral fallback only after an unfinished card has settled', async t => {
+test('keeps one directive mount around waiting and settled states', async t => {
   installStorage()
   globalThis.__openuiSubmissions = []
   const plugin = await loadPlugin(t)
   const { contribution } = installPlugin(plugin)
 
-  assert.equal(
-    renderDirective(contribution, {
-      id: 'ui-unknown',
-      sessionId: 'stored-unknown',
-      streaming: true
-    }),
-    ''
-  )
+  const waiting = renderDirective(contribution, {
+    id: 'ui-unknown',
+    sessionId: 'stored-unknown',
+    streaming: true
+  })
 
   const finished = renderDirective(contribution, {
     id: 'ui-unknown',
@@ -232,6 +260,9 @@ test('shows a neutral fallback only after an unfinished card has settled', async
     streaming: false
   })
 
+  assert.match(waiting, /class="hermes-openui-card-mount" data-hermes-openui-card/)
+  assert.doesNotMatch(waiting, /Interactive card unavailable\./)
+  assert.match(finished, /class="hermes-openui-card-mount" data-hermes-openui-card/)
   assert.match(finished, /Interactive card unavailable\./)
   assert.doesNotMatch(finished, /success/i)
 })
@@ -304,6 +335,35 @@ test('targets the directive session when an action asks for a follow-up', async 
     { sessionId: 'stored-a', text: 'Explain this' }
   ])
   assert.equal(plugin.submitOpenUIFollowUp(null, 'Explain this'), false)
+})
+
+test('query_data is an async, profile-scoped REST bridge', async t => {
+  installStorage()
+  globalThis.__openuiSubmissions = []
+  globalThis.__openuiRestCalls = []
+  const plugin = await loadPlugin(t)
+  const tools = plugin.createOpenUIQueryTools(async <T>(
+    path: string,
+    options?: { body?: unknown; method?: string; timeoutMs?: number }
+  ): Promise<T> => {
+    globalThis.__openuiRestCalls.push({ options, path })
+    return { rows: [{ id: 'row-1' }] } as T
+  })
+
+  assert.deepEqual(Object.keys(tools), ['query_data'])
+  assert.deepEqual(await tools.query_data?.({window: '30d'}), {
+    rows: [{ id: 'row-1' }]
+  })
+  assert.deepEqual(globalThis.__openuiRestCalls, [
+    {
+      options: {
+        body: { arguments: { window: '30d' } },
+        method: 'POST',
+        timeoutMs: 15_000
+      },
+      path: '/query'
+    }
+  ])
 })
 
 test('persists under the durable id and reloads after the runtime id changes', async t => {
