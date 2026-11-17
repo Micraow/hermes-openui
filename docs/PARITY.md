@@ -119,7 +119,7 @@ quality.
 
 The repeatable stock-host procedure uses the explicit `HERMES`,
 `HERMES_REPO`, and `HERMES_HOME` settings documented in
-[PROTOCOL.md](PROTOCOL.md). `tests/setup-webapp.mjs` creates a copied install
-link inside the ignored `local/` profile and preserves the real Hermes home.
+[PROTOCOL.md](PROTOCOL.md). `tests/setup-webapp.mjs` creates an install link
+inside the ignored `local/` profile and preserves the real Hermes home.
 Starting the stock Webapp verifies that Hermes materializes the browser half
 from the package's `desktop/` directory.
