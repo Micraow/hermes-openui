@@ -125,6 +125,10 @@ fixture live in the [streaming protocol guide](docs/PROTOCOL.md).
 
 ## Development
 
+Run validation locally before committing; this repository has no cloud CI.
+Use a Python environment with `fastapi`, `httpx`, and Pydantic 2 installed
+(for example, the environment used by Hermes Webapp).
+
 ```sh
 npm run typecheck
 npm test
