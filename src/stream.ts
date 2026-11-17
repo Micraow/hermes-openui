@@ -268,6 +268,60 @@ export class OpenUIStreamStore {
     return this.active.get(sessionId)?.text ?? ''
   }
 
+  /** Add complete cards found in an already persisted transcript. Live
+   *  deltas are not replayed when a plugin is enabled after a reply finished,
+   *  so the directive's session history is the durable source. */
+  hydrateCompletedText(sessionId: string, text: string): number {
+    const parsed = parseOpenUICards(text, true)
+
+    if (parsed.length === 0) {
+      return 0
+    }
+
+    const cards = new Map(this.cards.get(sessionId) ?? [])
+    const updatedAt = this.now()
+    let changed = false
+
+    for (const card of parsed) {
+      const snapshot: OpenUICardSnapshot = Object.freeze({
+        complete: true,
+        directiveSource: card.directiveSource,
+        id: card.id,
+        sessionId,
+        source: card.source,
+        sourceState: 'complete',
+        streaming: false,
+        turnId: null,
+        updatedAt
+      })
+      const current =
+        cards.get(card.id)?.snapshot ??
+        this.persisted.get(cardKey(sessionId, card.id))
+
+      // A complete live/persisted snapshot is newer than durable history.
+      // Incomplete or source-less snapshots are recoverable interruptions.
+      if (current?.complete && current.source.trim().length > 0) {
+        continue
+      }
+
+      const live = { snapshot, turnKey: 'history' }
+      cards.set(card.id, live)
+      this.persist(snapshot)
+      changed = true
+    }
+
+    if (changed) {
+      this.cards.set(sessionId, cards)
+      this.snapshots.set(
+        sessionId,
+        Object.freeze([...cards.values()].map(card => card.snapshot))
+      )
+      this.notify()
+    }
+
+    return parsed.length
+  }
+
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)

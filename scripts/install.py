@@ -18,8 +18,9 @@ SOURCE_ROOT = Path(__file__).resolve().parent.parent
 DESKTOP_FILES = ("plugin.js", "maplibre-gl-worker.mjs")
 FINAL_ACTION = (
     "In Hermes Desktop, run 'Reload desktop plugins' if the browser runtime is "
-    "pending, then open Capabilities -> Plugins and turn on the Desktop switch "
-    "for OpenUI cards (hermes-openui)."
+    "pending, then open Skills & Tools -> Plugins, select the installed OpenUI "
+    "cards (hermes-openui) package, and turn on its Desktop switch. "
+    "Settings -> Plugins only configures the Agent half."
 )
 
 

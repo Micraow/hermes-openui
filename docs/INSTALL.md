@@ -21,15 +21,15 @@ profile, install into that profile's home rather than the default `~/.hermes`.
 The installer looks for `hermes` on `PATH`; set `HERMES_BIN` when it is
 installed elsewhere.
 
-## Download v0.1.1
+## Download v0.1.2
 
 The release archive includes the built browser bundle and installer, so it
 needs no Node.js installation:
 
-[Download hermes-openui-v0.1.1.zip](https://github.com/Micraow/hermes-openui/releases/download/v0.1.1/hermes-openui-v0.1.1.zip)
+[Download hermes-openui-v0.1.2.zip](https://github.com/Micraow/hermes-openui/releases/download/v0.1.2/hermes-openui-v0.1.2.zip)
 
 ```sh
-unzip hermes-openui-v0.1.1.zip
+unzip hermes-openui-v0.1.2.zip
 cd hermes-openui
 ```
 
@@ -116,8 +116,13 @@ does not refresh its plugin catalog.
 ## Enable the browser half
 
 If the status says `runtime pending`, open the Hermes Desktop command palette
-and run **Reload desktop plugins**. Then open **Capabilities → Plugins** and
-turn on the Desktop switch for **OpenUI cards** (`hermes-openui`).
+and run **Reload desktop plugins**. Then open **技能与工具 → 插件**
+(**Skills & Tools → Plugins** in English), select the installed **OpenUI cards**
+package, and turn on its Desktop switch.
+
+The **设置 → 插件** page is Hermes' Agent plugin configuration form. It shows
+the plugin's Query URL and token, but it does not contain the Desktop browser
+switch.
 
 Hermes deliberately starts the browser half of a unified package off. The
 plugin's browser toggle is separate from `hermes plugins enable`, which gates
@@ -170,9 +175,10 @@ a new chat. The Skill is namespaced as `hermes-openui:openui`.
 
 **Text works but no card appears.** Run `python3 scripts/install.py --check`.
 If Browser reports `runtime pending`, run **Reload desktop plugins** in the
-Desktop command palette. After the copy is present, enable **OpenUI cards**
-under **Capabilities → Plugins**. This is separate from `hermes plugins
-enable`; Agent and Skill status do not prove browser activation.
+Desktop command palette. After the copy is present, enable **OpenUI cards** in
+**技能与工具 → 插件** (**Skills & Tools → Plugins**). This is separate from
+`hermes plugins enable`; Agent and Skill status do not prove browser
+activation.
 
 If the transcript shows the literal `::openui{id="…"}` directive, no browser
 contribution claimed the directive. If the installer reports the browser build
@@ -180,9 +186,15 @@ missing, rebuild or reinstall the package. If the runtime is pending, use
 **Reload desktop plugins** from the command palette, then enable the Desktop
 switch for **OpenUI cards**.
 
-**The transcript says “Interactive card unavailable.”** The model returned an
-incomplete or invalid source envelope. Ask again with
-`/hermes-openui:openui`; this plugin does not silently repair model output.
+**The transcript says “Interactive card unavailable.”** For completed answers,
+the browser reads the durable session history when no usable live card snapshot
+is available, including after a refresh leaves an incomplete or source-less
+card. Enabling the plugin after a reply or reopening the chat does not require
+replaying the message. A failed history request is not cached and is retried
+when the card mounts again. If the message still cannot render, its source
+envelope was incomplete or invalid, or Hermes did not return the durable
+assistant text. Ask again with `/hermes-openui:openui`; the plugin does not
+silently repair model output.
 
 **A selected value resets near completion.** Hermes 0.23.1 can replace
 transcript DOM while a message settles. The plugin persists completed card

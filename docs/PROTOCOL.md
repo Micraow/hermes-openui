@@ -24,6 +24,21 @@ OpenUI source. On the final delta the card switches to `complete`. A terminal
 `message.complete` caches the card only when both the end marker and
 `payload.status === "complete"` are present.
 
+A finished directive can also be recovered after the live stream has ended.
+When Desktop mounts a completed directive without a usable card snapshot,
+including an incomplete card or one with empty source, the plugin requests the
+durable `session.history` transcript for that stored session. It reparses
+closed `::openui` envelopes from assistant text and stores the resulting cards
+under the durable session ID. This recovery accepts only completed envelopes;
+an interrupted response remains unavailable.
+
+A successful history scan is reused for the mounted plugin session. A failed
+request is not cached, returns a generic failure result, and is retried when
+the card mounts again; the plugin does not expose the request error or source
+text through that failure path. A complete, nonempty live or persisted card is
+newer than the history projection and is never replaced by an older historical
+snapshot.
+
 ## Read-only Query bridge
 
 The OpenUI runtime performs `Query("query_data", args, {rows: []})` through

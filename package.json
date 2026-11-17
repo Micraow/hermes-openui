@@ -28,7 +28,7 @@
     "playwright-core": "1.65.1",
     "typescript": "6.0.3"
   },
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Streaming, interactive OpenUI answers for Hermes Agent. Plugin and authoring skill, no host patches required.",
   "license": "MIT",
   "author": "Micraow",

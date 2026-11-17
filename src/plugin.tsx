@@ -5,7 +5,7 @@ import {
   type HermesPlugin,
   type TranscriptDirectiveContribution
 } from '@hermes/plugin-sdk'
-import { useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 
 import { OpenUISurface } from './surface.tsx'
 import { OpenUIStreamStore } from './stream.ts'
@@ -42,8 +42,33 @@ type SessionPayload = Readonly<{
   stored_session_id?: unknown
 }>
 
+interface TranscriptMessage {
+  readonly role?: unknown
+  readonly text?: unknown
+}
+
+interface SessionHistory {
+  readonly messages?: readonly TranscriptMessage[]
+}
+
+export type SessionHistoryReader = (sessionId: string) => Promise<readonly unknown[]>
+
 function stringValue(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+export function shouldHydrateHistory(
+  card: undefined | { readonly complete: boolean; readonly source: string },
+  finished: boolean,
+  id: null | string,
+  sessionId: null | string
+): boolean {
+  return Boolean(
+    finished &&
+      id &&
+      sessionId &&
+      (!card || !card.complete || card.source.trim().length === 0)
+  )
 }
 
 /**
@@ -52,10 +77,74 @@ function stringValue(value: unknown): string | null {
  */
 export class OpenUIBridge {
   private readonly storedByRuntime = new Map<string, string>()
+  private readonly runtimeByStored = new Map<string, string>()
+  private readonly hydrating = new Map<string, Promise<boolean>>()
+  private readonly hydrated = new Set<string>()
   private readonly store = new OpenUIStreamStore()
+
+  constructor(
+    private readonly readHistory: SessionHistoryReader = async sessionId => {
+      const result = await host.request<SessionHistory>('session.history', {
+        session_id: sessionId
+      })
+
+      return Array.isArray(result.messages) ? result.messages : []
+    }
+  ) {}
 
   getCard = (sessionId: string | null | undefined, id: string) =>
     sessionId ? this.store.getCard(this.storedByRuntime.get(sessionId) ?? sessionId, id) : undefined
+
+  private liveSessionId(storedId: string): string {
+    return this.runtimeByStored.get(storedId) ?? storedId
+  }
+
+  hydrate(sessionId: null | string): Promise<boolean> {
+    const storedId = stringValue(sessionId)
+
+    if (!storedId) {
+      return Promise.resolve(false)
+    }
+
+    if (this.hydrated.has(storedId)) {
+      return Promise.resolve(true)
+    }
+
+    const existing = this.hydrating.get(storedId)
+
+    if (existing) {
+      return existing
+    }
+
+    const hydration = (async (): Promise<boolean> => {
+      try {
+        const messages = await this.readHistory(this.liveSessionId(storedId))
+
+        for (const value of messages) {
+          if (typeof value !== 'object' || value === null) {
+            continue
+          }
+
+          const message = value as TranscriptMessage
+          const text = message.role === 'assistant' ? stringValue(message.text) : null
+
+          if (text) {
+            this.store.hydrateCompletedText(storedId, text)
+          }
+        }
+
+        this.hydrated.add(storedId)
+        return true
+      } catch {
+        return false
+      }
+    })().finally(() => {
+      this.hydrating.delete(storedId)
+    })
+
+    this.hydrating.set(storedId, hydration)
+    return hydration
+  }
 
   handleEvent(event: HermesGatewayEvent): boolean {
     const runtimeId = stringValue(event.session_id)
@@ -69,6 +158,7 @@ export class OpenUIBridge {
 
     if (informedStoredId) {
       this.storedByRuntime.set(runtimeId, informedStoredId)
+      this.runtimeByStored.set(informedStoredId, runtimeId)
     }
 
     const storedId = informedStoredId ?? this.storedByRuntime.get(runtimeId)
@@ -116,6 +206,12 @@ function OpenUIDirective({
   const usable =
     Boolean(id && sessionId && card?.source.trim()) &&
     (!finished || Boolean(card?.complete))
+
+  useEffect(() => {
+    if (shouldHydrateHistory(card, finished, id, sessionId)) {
+      void bridge.hydrate(sessionId).catch(() => false)
+    }
+  }, [bridge, card, finished, id, sessionId])
 
   return (
     <div

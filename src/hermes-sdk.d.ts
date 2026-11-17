@@ -59,6 +59,11 @@ declare module '@hermes/plugin-sdk' {
 
   export interface PluginHost {
     readonly composer: PluginComposer
+    readonly request: <T>(
+      method: string,
+      params?: Readonly<Record<string, unknown>>,
+      timeoutMs?: number
+    ) => Promise<T>
   }
 
   export const TRANSCRIPT_DIRECTIVE_AREA: string

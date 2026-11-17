@@ -51,6 +51,24 @@ type PluginModule = {
       ) => Promise<T>
     }) => void
   }
+  OpenUIBridge: new (
+    readHistory: (sessionId: string) => Promise<readonly unknown[]>
+  ) => {
+    getCard: (
+      sessionId: string,
+      id: string
+    ) => undefined | {
+      complete: boolean
+      source: string
+    }
+    hydrate: (sessionId: null | string) => Promise<boolean>
+  }
+  shouldHydrateHistory: (
+    card: undefined | { readonly complete: boolean; readonly source: string },
+    finished: boolean,
+    id: null | string,
+    sessionId: null | string
+  ) => boolean
   OPENUI_UNAVAILABLE: string
   createOpenUIQueryTools: (
     rest: <T>(
@@ -395,6 +413,87 @@ test('persists under the durable id and reloads after the runtime id changes', a
   })
 
   assert.match(html, /data-hermes-openui-identity="ui-reload"/)
+})
+
+test('hydrates a finished historical directive from durable session history', async t => {
+  installStorage()
+  const plugin = await loadPlugin(t)
+  const requests: string[] = []
+  const id = 'ui-history'
+  const bridge = new plugin.OpenUIBridge(async sessionId => {
+    requests.push(sessionId)
+
+    return [
+      { role: 'user', text: 'Make a card.' },
+      {
+        role: 'assistant',
+        text: openUIResponse(id, 'root = Card("Historical card")')
+      }
+    ]
+  })
+
+  await bridge.hydrate('stored-history')
+  await bridge.hydrate('stored-history')
+
+  assert.deepEqual(requests, ['stored-history'])
+  assert.equal(bridge.getCard('stored-history', id)?.complete, true)
+  assert.equal(
+    bridge.getCard('stored-history', id)?.source,
+    'root = Card("Historical card")'
+  )
+})
+
+test('failed history hydration stays retryable without rejecting', async t => {
+  const storage = installStorage()
+  const plugin = await loadPlugin(t)
+  const requests: string[] = []
+  const id = 'ui-history-retry'
+  let attempts = 0
+  const bridge = new plugin.OpenUIBridge(async sessionId => {
+    requests.push(sessionId)
+    attempts += 1
+
+    if (attempts === 1) {
+      throw new Error('private history detail')
+    }
+
+    return [{ role: 'assistant', text: openUIResponse(id, 'root = Card("Recovered")') }]
+  })
+
+  assert.equal(await bridge.hydrate('stored-retry'), false)
+  assert.equal(bridge.getCard('stored-retry', id), undefined)
+  assert.doesNotMatch(storage.getItem('hermes.openui.stream.v2') ?? '', /private history detail/)
+
+  assert.equal(await bridge.hydrate('stored-retry'), true)
+  assert.deepEqual(requests, ['stored-retry', 'stored-retry'])
+  assert.equal(bridge.getCard('stored-retry', id)?.source, 'root = Card("Recovered")')
+})
+
+test('requests history only for absent, incomplete, or source-less finished cards', async t => {
+  const plugin = await loadPlugin(t)
+  const complete = { complete: true, source: 'root = Card("Complete")' }
+
+  assert.equal(plugin.shouldHydrateHistory(undefined, true, 'ui-a', 'stored-a'), true)
+  assert.equal(
+    plugin.shouldHydrateHistory(
+      { complete: false, source: 'root = Card("Partial")' },
+      true,
+      'ui-a',
+      'stored-a'
+    ),
+    true
+  )
+  assert.equal(
+    plugin.shouldHydrateHistory(
+      { complete: true, source: '  ' },
+      true,
+      'ui-a',
+      'stored-a'
+    ),
+    true
+  )
+  assert.equal(plugin.shouldHydrateHistory(complete, true, 'ui-a', 'stored-a'), false)
+  assert.equal(plugin.shouldHydrateHistory(undefined, false, 'ui-a', 'stored-a'), false)
 })
 
 test('retires a failed session without leaking into another session card', async t => {

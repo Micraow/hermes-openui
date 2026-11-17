@@ -81,6 +81,8 @@ class InstallerTest(unittest.TestCase):
         self.assertFalse(report["browser"]["runtime"])
         self.assertEqual(report["browser"]["activation"], "user-action-required")
         self.assertIn("Reload desktop plugins", report["finalAction"])
+        self.assertIn("Skills & Tools -> Plugins", report["finalAction"])
+        self.assertIn("Settings -> Plugins", report["finalAction"])
 
         agent = self.home / "plugins" / "hermes-openui"
         desktop = self.home / "desktop-plugins" / "hermes-openui"

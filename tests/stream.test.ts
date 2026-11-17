@@ -256,6 +256,74 @@ test('restores a completed card after browser refresh', () => {
   assert.equal(refreshed.getCard('session-a', id), restored)
 })
 
+test('hydrates completed cards from a persisted transcript', () => {
+  const storage = new MemoryStorage()
+  const store = new OpenUIStreamStore({ storage, now: () => 42 })
+  const response = [
+    'Earlier prose.',
+    openUIResponse('ui-history-a', 'root = Card("A")'),
+    'Later prose.',
+    openUIResponse('ui-history-b', 'root = Card("B")')
+  ].join('\n\n')
+
+  assert.equal(store.hydrateCompletedText('session-a', response), 2)
+  assert.equal(store.getCard('session-a', 'ui-history-a')?.source, 'root = Card("A")')
+  assert.equal(store.getCard('session-a', 'ui-history-b')?.source, 'root = Card("B")')
+  assert.equal(store.getSessionCards('session-a').length, 2)
+  assert.equal(
+    new OpenUIStreamStore({ storage }).getCard('session-a', 'ui-history-b')?.complete,
+    true
+  )
+})
+
+test('history repairs interrupted cards without replacing complete live state', () => {
+  const storage = new MemoryStorage()
+  const live = new OpenUIStreamStore({ storage })
+  const id = 'ui-live-newer'
+  const liveResponse = openUIResponse(id, 'root = Card("Live newer")')
+
+  live.handleEvent(start('session-a', 'turn-live'))
+  live.handleEvent(delta('session-a', 'turn-live', liveResponse, 0))
+  live.handleEvent(complete('session-a', liveResponse))
+  live.hydrateCompletedText(
+    'session-a',
+    openUIResponse(id, 'root = Card("History older")')
+  )
+
+  assert.equal(live.getCard('session-a', id)?.source, 'root = Card("Live newer")')
+
+  const interrupted = new OpenUIStreamStore({ storage: null })
+  const partial = `::openui{id="${id}"}\n\n<!--openui:source id="${id}"\nroot = Card("Partial")`
+  interrupted.handleEvent(start('session-b', 'turn-interrupted'))
+  interrupted.handleEvent(delta('session-b', 'turn-interrupted', partial, 0))
+  interrupted.hydrateCompletedText(
+    'session-b',
+    openUIResponse(id, 'root = Card("Recovered")')
+  )
+
+  assert.equal(interrupted.getCard('session-b', id)?.source, 'root = Card("Recovered")')
+  assert.equal(interrupted.getCard('session-b', id)?.complete, true)
+})
+
+test('history does not replace a complete persisted card', () => {
+  const storage = new MemoryStorage()
+  const id = 'ui-persisted-newer'
+  const first = new OpenUIStreamStore({ storage, now: () => 1 })
+  const response = openUIResponse(id, 'root = Card("Persisted newer")')
+
+  first.handleEvent(start('session-a', 'turn-1'))
+  first.handleEvent(delta('session-a', 'turn-1', response, 0))
+  first.handleEvent(complete('session-a', response))
+
+  const refreshed = new OpenUIStreamStore({ storage, now: () => 2 })
+  refreshed.hydrateCompletedText(
+    'session-a',
+    openUIResponse(id, 'root = Card("History older")')
+  )
+
+  assert.equal(refreshed.getCard('session-a', id)?.source, 'root = Card("Persisted newer")')
+})
+
 test('does not restore legacy cache entries without a success contract', () => {
   const storage = new MemoryStorage()
   storage.setItem(

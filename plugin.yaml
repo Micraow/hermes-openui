@@ -1,5 +1,5 @@
 name: hermes-openui
-version: 0.1.1
+version: 0.1.2
 description: "Render compact interactive OpenUI cards in official Hermes Webapp and Desktop conversations through the bundled desktop plugin."
 author: Micraow
 kind: standalone

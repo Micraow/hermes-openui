@@ -32,15 +32,15 @@ Hermes **0.23.1 or newer** and Python **3.10 or newer** are required. Node.js
 source checkout. The installer looks for `hermes` on `PATH`; set `HERMES_BIN`
 to use another executable.
 
-### Prebuilt v0.1.1
+### Prebuilt v0.1.2
 
 Download the versioned archive, extract it, and run the shared install steps
 from the directory containing `plugin.yaml`:
 
-[Download hermes-openui-v0.1.1.zip](https://github.com/Micraow/hermes-openui/releases/download/v0.1.1/hermes-openui-v0.1.1.zip)
+[Download hermes-openui-v0.1.2.zip](https://github.com/Micraow/hermes-openui/releases/download/v0.1.2/hermes-openui-v0.1.2.zip)
 
 ```sh
-unzip hermes-openui-v0.1.1.zip
+unzip hermes-openui-v0.1.2.zip
 cd hermes-openui
 ```
 
@@ -70,10 +70,12 @@ whether Desktop has materialized and activated that build is reported
 separately. Use `python3 scripts/install.py --check` for a read-only report.
 
 In Hermes Desktop, run **Reload desktop plugins** if the report says the
-browser runtime is pending. Then open **Capabilities → Plugins** and turn on
-the Desktop switch for **OpenUI cards** (`hermes-openui`). Hermes keeps this
-browser activation off by default and exposes no public command that sets it.
-Then start a new chat with:
+browser runtime is pending. Then open **技能与工具 → 插件**
+(**Skills & Tools → Plugins**), select the installed **OpenUI cards**
+(`hermes-openui`) package, and turn on its Desktop switch. The **设置 → 插件**
+page only configures the Agent half. Hermes keeps this browser activation off
+by default and exposes no public command that sets it. Then start a new chat
+with:
 
 ```text
 /hermes-openui:openui Compare hybrid, semantic, and graph retrieval with clearly labeled illustrative scores, and let me switch the metric.
@@ -117,6 +119,10 @@ and [catalog parity](docs/PARITY.md) for host-specific behavior.
 - Hermes can replace transcript DOM while a message settles. Card state is
   persisted per session, but a host remount can still reset state. Interactive
   controls are enabled only after the source completes.
+- Completed answers recover from durable session history when the browser half
+  was enabled late or a refresh interrupted the card. A failed history request
+  is retried on the next mount; a complete live card is not replaced by an
+  older historical snapshot.
 - Image search, MapLibre tiles, and street-route overlays need outbound network
   access. Route views are overviews and are not turn-by-turn navigation.
 - Citation, photo, and place data comes from the model or a trusted tool. The
