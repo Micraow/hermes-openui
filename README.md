@@ -1,15 +1,143 @@
-# Streaming OpenUI for Hermes
+<h1 align="center">Hermes OpenUI</h1>
 
-An independent plugin for Hermes v0.23.1. It subscribes to the public gateway event stream and renders a progressively generated OpenUI Lang answer inside the chat transcript. There is no Hermes or CoMem core patch.
+<p align="center"><strong>Interactive answers that render while Hermes is still writing them.</strong></p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2f855a.svg" alt="License: MIT"></a>
+  <a href="https://github.com/NousResearch/hermes-agent"><img src="https://img.shields.io/badge/Hermes-%3E%3D0.23.1-5b5bd6.svg" alt="Hermes 0.23.1 or newer"></a>
+</p>
+
+<p align="center">
+  <a href="docs/INSTALL.md">Install</a> ·
+  <a href="docs/QUERY.md">Query data</a> ·
+  <a href="docs/PROTOCOL.md">Streaming protocol</a>
+</p>
+
+Hermes OpenUI is a standalone Hermes plugin and authoring Skill. It turns a
+normal assistant reply into a live page with charts, tables, maps, calculators,
+checklists, diagrams, and controls that update locally.
+
+<p align="center">
+  <a href="docs/assets/openui-demo.png">
+    <img src="docs/assets/openui-demo.png" alt="A synthetic fixture comparing retrieval strategies with a metric selector, relative-performance bars, an evidence-floor slider, and a follow-up button" width="760">
+  </a>
+</p>
+
+<p align="center"><sub>Synthetic browser-test fixture. The displayed scores are illustrative, not measured benchmarks.</sub></p>
+
+## Install
+
+Hermes **0.23.1 or newer** is required. Node.js **22.15.0 or newer** and npm
+are needed only when building or testing the source checkout.
+
+### Prebuilt v0.1.0
+
+Download the versioned archive, extract it, and run the shared install steps
+from the directory containing `plugin.yaml`:
+
+[Download hermes-openui-v0.1.0.zip](https://github.com/Micraow/hermes-openui/releases/download/v0.1.0/hermes-openui-v0.1.0.zip)
 
 ```sh
+unzip hermes-openui-v0.1.0.zip
+cd hermes-openui
+```
+
+### From source
+
+```sh
+git clone https://github.com/Micraow/hermes-openui.git
+cd hermes-openui
 npm ci
-npm run typecheck
-npm test
-npm run test:browser   # requires Chromium (override with CHROMIUM_PATH)
 npm run build
 ```
 
-The esbuild bundle must stay under the Hermes plugin loader's 512 KiB limit. For manual use, copy `desktop/plugin.js` to the `desktop-plugins/hermes-openui/plugin.js` directory under the Hermes home serving the Webapp. In the same Hermes home, copy `skills/openui` into `skills/`, then request `/openui` in a compatible chat. See [PLAN.md](PLAN.md) for scope and validation.
+### Link and enable
 
-This first checkpoint proves the streaming path and browser interaction with a small set of components. The Open Intelligent UI visual integration and a real-model smoke test are tracked separately.
+From the archive or source directory:
+
+```sh
+export HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
+mkdir -p "$HERMES_HOME/plugins"
+ln -s "$PWD" "$HERMES_HOME/plugins/hermes-openui"
+
+hermes plugins doctor --ci "$PWD"
+hermes plugins enable hermes-openui
+hermes gateway restart
+```
+
+Reopen the Webapp, go to **Capabilities → Plugins**, and turn on **OpenUI
+cards** (`hermes-openui`). Hermes ships the browser half of a unified package
+off by default. Then start a new chat with:
+
+```text
+/hermes-openui:openui Compare hybrid, semantic, and graph retrieval with clearly labeled illustrative scores, and let me switch the metric.
+```
+
+The plugin includes the `hermes-openui:openui` Skill and its catalog. Install
+them as one package. For profile selection, updates, verification, and
+troubleshooting, read [Install Hermes OpenUI](docs/INSTALL.md).
+
+## What it does
+
+- **Streams a usable page.** The answer's root renders as source arrives.
+  Controls become interactive after the source completes.
+- **Handles ordinary interactions locally.** A slider, tab, filter, calculation,
+  clipboard action, marker selection, or checklist update does not start a new
+  model turn.
+- **Can query one read-only data source.** `Query("query_data", ...)` sends
+  model-supplied scalar arguments to the endpoint selected by the Hermes profile
+  owner. Returned rows stay in the browser card and do not enter the model
+  transcript.
+- **Continues only on request.** An explicit `@ToAssistant` or form submit sends
+  a new, task-specific message to the same Hermes chat.
+
+The pinned Open Intelligent UI catalog exposes **55 components** and
+**59 functions**, including local state, charts, tables, images, maps, SVG,
+Markdown, math, a restricted HTML sandbox, citations, photo attribution, and
+place links. See the [bundled Skill](skills/openui/SKILL.md) for authoring rules
+and [catalog parity](docs/PARITY.md) for host-specific behavior.
+
+## Requirements and limits
+
+- Hermes 0.23.1 or newer is required. No Hermes source patch is needed.
+- CoMem is **not required**. If you already use CoMem, it can provide memory or
+  context through its own Hermes integration. See
+  [github.com/Micraow/CoMem](https://github.com/Micraow/CoMem).
+- Models may choose Markdown instead of the bundled Skill. Use
+  `/hermes-openui:openui` when the answer must be an OpenUI card.
+- The plugin validates the streaming envelope; it does not repair an invalid
+  model-generated program. A malformed program ends as
+  “Interactive card unavailable.”
+- Hermes can replace transcript DOM while a message settles. Card state is
+  persisted per session, but a host remount can still reset state. Interactive
+  controls are enabled only after the source completes.
+- Image search, MapLibre tiles, and street-route overlays need outbound network
+  access. Route views are overviews and are not turn-by-turn navigation.
+- Citation, photo, and place data comes from the model or a trusted tool. The
+  plugin validates URL shape and attribution fields; it does not verify the
+  underlying claims.
+- Browser acceptance currently covers Chromium. Firefox and WebKit are not in
+  the tested matrix.
+
+For Query configuration, endpoint limits, error behavior, and security, read
+[Read-only Query data](docs/QUERY.md). Development notes and the deterministic
+fixture live in the [streaming protocol guide](docs/PROTOCOL.md).
+
+## Development
+
+```sh
+npm run typecheck
+npm test
+npm run test:browser
+```
+
+`npm test` covers the TypeScript runtime and Python Query bridge.
+`npm run test:browser` uses Chromium; set `CHROMIUM_PATH` when Chromium is not
+on the default path.
+
+## License
+
+Hermes OpenUI is MIT licensed. The pinned Open Intelligent UI catalog keeps its
+upstream MIT license in
+[OPEN-INTELLIGENT-UI-LICENSE.txt](docs/OPEN-INTELLIGENT-UI-LICENSE.txt). See
+[third-party notices](THIRD_PARTY_NOTICES.md) for the retained attributions.
