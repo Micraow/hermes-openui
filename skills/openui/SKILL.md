@@ -10,9 +10,11 @@ a comparison that changes with a control, an editable calculator or checklist,
 a chart backed by rows, a visual explanation, a small game, or a place map.
 Keep ordinary prose, research summaries, and short answers in Markdown.
 
-An OpenUI page runs in the Hermes answer surface. It can hold local state and
-compute with the complete catalog below. Use `@ToAssistant` only when the next
-step needs a new model turn.
+An OpenUI page runs in the Hermes answer surface when the plugin's Desktop
+browser half is enabled. It can hold local state and compute with the complete
+catalog below. Use `@ToAssistant` only when the next step needs a new model
+turn. Do not add installation or renderer-status disclaimers to ordinary
+answers; the installer reports those states separately.
 
 ## Output shape
 

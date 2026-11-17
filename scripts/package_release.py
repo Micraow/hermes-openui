@@ -10,6 +10,7 @@ OUTPUT.mkdir(parents=True, exist_ok=True)
 
 # Hermes loads the manifest, Python registration, skill, API and browser bundle.
 files = [ROOT / name for name in ("plugin.yaml", "__init__.py", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "package-lock.json")]
+files.extend((ROOT / "scripts" / "install.py", ROOT / "scripts" / "__init__.py"))
 for directory in ("skills", "dashboard", "docs", "desktop"):
     files.extend(path for path in (ROOT / directory).rglob("*")
                  if path.is_file() and "__pycache__" not in path.parts

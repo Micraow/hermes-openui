@@ -7,7 +7,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import ./tests/register-tsx.mjs --test tests/*.test.ts && npm run test:backend",
     "test:browser": "node --import ./tests/register-tsx.mjs --test tests/surface.test.tsx",
-    "test:backend": "python3 -m unittest discover -s dashboard/tests -p 'test_*.py'",
+    "test:backend": "python3 -m unittest discover -s dashboard/tests -p 'test_*.py' && python3 -m unittest discover -s tests -p 'test_install.py'",
     "test:webapp": "node --import ./tests/register-tsx.mjs tests/webapp.mjs",
     "package": "npm run build && python3 scripts/package_release.py"
   },
@@ -28,7 +28,7 @@
     "playwright-core": "1.65.1",
     "typescript": "6.0.3"
   },
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Streaming, interactive OpenUI answers for Hermes Agent. Plugin and authoring skill, no host patches required.",
   "license": "MIT",
   "author": "Micraow",

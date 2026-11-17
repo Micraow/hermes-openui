@@ -27,18 +27,20 @@ checklists, diagrams, and controls that update locally.
 
 ## Install
 
-Hermes **0.23.1 or newer** is required. Node.js **22.15.0 or newer** and npm
-are needed only when building or testing the source checkout.
+Hermes **0.23.1 or newer** and Python **3.10 or newer** are required. Node.js
+**22.15.0 or newer** and npm are needed only when building or testing the
+source checkout. The installer looks for `hermes` on `PATH`; set `HERMES_BIN`
+to use another executable.
 
-### Prebuilt v0.1.0
+### Prebuilt v0.1.1
 
 Download the versioned archive, extract it, and run the shared install steps
 from the directory containing `plugin.yaml`:
 
-[Download hermes-openui-v0.1.0.zip](https://github.com/Micraow/hermes-openui/releases/download/v0.1.0/hermes-openui-v0.1.0.zip)
+[Download hermes-openui-v0.1.1.zip](https://github.com/Micraow/hermes-openui/releases/download/v0.1.1/hermes-openui-v0.1.1.zip)
 
 ```sh
-unzip hermes-openui-v0.1.0.zip
+unzip hermes-openui-v0.1.1.zip
 cd hermes-openui
 ```
 
@@ -51,30 +53,34 @@ npm ci
 npm run build
 ```
 
-### Link and enable
+### Install and check
 
 From the archive or source directory:
 
 ```sh
 export HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
-mkdir -p "$HERMES_HOME/plugins"
-ln -s "$PWD" "$HERMES_HOME/plugins/hermes-openui"
-
-hermes plugins doctor --ci "$PWD"
-hermes plugins enable hermes-openui
-hermes gateway restart
+python3 scripts/install.py
 ```
 
-Reopen the Webapp, go to **Capabilities → Plugins**, and turn on **OpenUI
-cards** (`hermes-openui`). Hermes ships the browser half of a unified package
-off by default. Then start a new chat with:
+The installer links the package when the slot is empty, keeps any existing
+plugin slot untouched, and uses Hermes' public `plugins doctor` and
+`plugins enable` commands. It prints three separate states: **Agent**,
+**Skill**, and **Browser**. Browser means the prebuilt browser bundle is complete;
+whether Desktop has materialized and activated that build is reported
+separately. Use `python3 scripts/install.py --check` for a read-only report.
+
+In Hermes Desktop, run **Reload desktop plugins** if the report says the
+browser runtime is pending. Then open **Capabilities → Plugins** and turn on
+the Desktop switch for **OpenUI cards** (`hermes-openui`). Hermes keeps this
+browser activation off by default and exposes no public command that sets it.
+Then start a new chat with:
 
 ```text
 /hermes-openui:openui Compare hybrid, semantic, and graph retrieval with clearly labeled illustrative scores, and let me switch the metric.
 ```
 
 The plugin includes the `hermes-openui:openui` Skill and its catalog. Install
-them as one package. For profile selection, updates, verification, and
+them as one package. For named profiles, updates, verification, and
 troubleshooting, read [Install Hermes OpenUI](docs/INSTALL.md).
 
 ## What it does
